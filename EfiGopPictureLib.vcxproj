@@ -23,12 +23,19 @@
     <IncludePath>$(EDK_PATH)\EdkCompatibilityPkg\Foundation;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemGroup>
+    <ClCompile Include="EfiDecompress.c">
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Level4</WarningLevel>
+      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</TreatWarningAsError>
+    </ClCompile>
     <ClCompile Include="GraphicsLib.c" />
+    <ClCompile Include="GraphicsLib_Decompress.c" />
     <ClCompile Include="UefiDebug.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="EfiDecompress.h" />
     <ClInclude Include="GraphicsLib.h" />
     <ClInclude Include="GraphicsLib_Common.h" />
+    <ClInclude Include="GraphicsLib_Decompress.h" />
     <ClInclude Include="GraphicsLib_Private.h" />
     <ClInclude Include="UefiDebug.h" />
   </ItemGroup>

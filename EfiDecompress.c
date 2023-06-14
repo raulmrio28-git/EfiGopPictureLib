@@ -7,6 +7,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 
 --*/
 
+#include <Library/DebugLib.h>
 #include "EfiDecompress.h"
 
 //
@@ -145,7 +146,7 @@ UINT16
 MakeTable (
   IN  SCRATCH_DATA  *Sd,
   IN  UINT16        NumOfChar,
-  IN  UINT8         *BitLen,
+  IN  CONST UINT8   *BitLen,
   IN  UINT16        TableBits,
   OUT UINT16        *Table
   )
@@ -210,8 +211,9 @@ MakeTable (
   Avail = NumOfChar;
   Mask  = (UINT16) (1U << (15 - TableBits));
   MaxTableLength = (UINT16) (1U << TableBits);
+  Char = 0;
 
-  for (Char = 0; Char < NumOfChar; Char++) {
+  while (Char < NumOfChar) {
 
     Len = BitLen[Char];
     if (Len == 0 || Len >= 17) {
@@ -257,6 +259,7 @@ MakeTable (
     }
 
     Start[Len] = NextCode;
+	Char++;
   }
   //
   // Succeeds
@@ -304,7 +307,7 @@ DecodeP (
 
   Pos = Val;
   if (Val > 1) {
-    Pos = (UINT32) ((1U << (Val - 1)) + GetBits (Sd, (UINT16) (Val - 1)));
+    Pos = ((1U << (Val - 1)) + GetBits (Sd, (UINT16) (Val - 1)));
   }
 
   return Pos;
@@ -577,11 +580,11 @@ Decode (
       BytesRemain--;
       while ((INT16) (BytesRemain) >= 0) {
         if (Sd->mOutBuf >= Sd->mOrigSize) {
-          return ;
+          return;
         }
         else if (DataIdx >= Sd->mOrigSize) {
           Sd->mBadTableFlag = (UINT16) BAD_TABLE;
-          return ;
+          return;
         }
         Sd->mDstBase[Sd->mOutBuf++] = Sd->mDstBase[DataIdx++];
 
@@ -591,12 +594,11 @@ Decode (
       // Once mOutBuf is fully filled, directly return
       //
       if (Sd->mOutBuf >= Sd->mOrigSize) {
-        return ;
+        return;
       }
     }
   }
 
-  return ;
 }
 
 /**
@@ -618,7 +620,7 @@ GetInfo (
   OUT     UINT32  *ScratchSize
   )
 {
-  UINT8 *Src;
+  CONST UINT8 *Src;
   UINT32 CompSize;
 
   *ScratchSize  = sizeof (SCRATCH_DATA);
@@ -696,8 +698,11 @@ Decompress (
 
   Src = Src + 8;
 
-  for (Index = 0; Index < sizeof (SCRATCH_DATA); Index++) {
+  Index = 0;
+
+  while(Index < sizeof (SCRATCH_DATA)) {
     ((UINT8 *) Sd)[Index] = 0;
+	Index++;
   }
 
   Sd->mSrcBase  = Src;

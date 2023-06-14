@@ -70,7 +70,7 @@ UINT32 ReadNBytes(
 {
 	UINT32 nOut = 0;         // Output value
 	UINT8 nCurrByte = 0;        // Current byte being read
-
+	ASSERT_ENSURE(pBuffer != NULL || nBytes != 0);
 	while(nCurrByte < nBytes && nCurrByte < sizeof(UINT32))
 	{
 		nOut |= pBuffer[nCurrByte] << (8 * nCurrByte); // Shift and OR in the next byte
@@ -86,6 +86,7 @@ VOID WriteNBytes(
 	IN			UINT32 nValue,
 	IN			UINT8 nBytes
 ) {
+	ASSERT_ENSURE(pBuffer != NULL || nBytes != 0);
 	for (int i = 0; i < nBytes; i++) {        // For each byte
 		pBuffer[i] = nValue & 0xFF;           // Write the least significant byte
 		nValue >>= 8;                         // Shift value right by 8 bits
@@ -104,7 +105,8 @@ VOID RleDecompress(
 	UINT32 nOutPos = 0;        // Position in output buffer
 	UINT16 nCount;            // Count of repeated bytes
 	UINT32 nValue;            // Value of current byte(s)
-
+	ASSERT_ENSURE(pInBuffer != NULL || nInSize != 0);
+	ASSERT_ENSURE(pOutBuffer != NULL || pnOutSize != 0 || nBpp != 0);
 	while (nInPos < nInSize) { // While input position < input size
 
 		// Check if the next value is the RLE flag (0x00)
@@ -155,6 +157,8 @@ VOID LzssDecompress(
 	IN OUT		UINT32 *pnOutSize
 )
 {
+	ASSERT_ENSURE(pInBuffer != NULL || nInSize != 0);
+	ASSERT_ENSURE(pOutBuffer != NULL || pnOutSize != 0);
 	CONST UINT8 *pCurrIn;
 	UINT8 *pCurrOut;
 	UINT32 i;
@@ -220,7 +224,8 @@ VOID PackBitsDecompress(
 	UINT32 nOutPos = 0;        // Position in output buffer
 	UINT32 nValue;
 	UINT8 nCount;            // Count of repeated or non-repeated bytes
-
+	ASSERT_ENSURE(pInBuffer != NULL || nInSize != 0);
+	ASSERT_ENSURE(pOutBuffer != NULL || pnOutSize != 0 || nBpp != 0);
 	while (nInPos < nInSize) { // While input position < input size
 		nCount = pInBuffer[nInPos];   // Read the next byte count
 		nInPos++;                               // Increment the input position by a byte
@@ -257,9 +262,9 @@ VOID PackBits16Decompress(
 {
 	UINT32 nInPos = 0;         // Position in input buffer
 	UINT32 nOutPos = 0;        // Position in output buffer
-
 	UINT16 nCount;            // Count of repeated or non-repeated bytes
-
+	ASSERT_ENSURE(pInBuffer != NULL || nInSize != 0);
+	ASSERT_ENSURE(pOutBuffer != NULL || pnOutSize != 0 || nBpp != 0);
 	while (nInPos < nInSize) { // While input position < input size
 		nCount = (UINT16)ReadNBytes(pInBuffer + nInPos, 2);   // Read the next 2-byte count
 		nInPos += 2;                               // Increment the input position by 2 bytes
@@ -291,26 +296,30 @@ EFI_STATUS
 EFIAPI
 EfiDirectDecompress
 (
-	IN	UINT8* pSource,
-	IN  UINT32  pSrcSize,
-	OUT UINT8*  pDestination,
-	OUT UINT32*	pDstSize
+	IN	UINT8* pInBuffer,
+	IN  UINT32  nInSize,
+	OUT UINT8*  pOutBuffer,
+	OUT UINT32*	pnOutSize
 )
 {
-	VOID          *Scratch = NULL;
-	UINT32        ScratchSize;
-	ASSERT_CHECK_EFISTATUS(EfiGetInfo(pSource, pSrcSize, pDstSize, &ScratchSize));
-	ASSERT_CHECK((Scratch = AllocateZeroPool(ScratchSize)) != NULL);
-	if (pDestination == NULL)
-		pDestination = AllocateZeroPool(*pDstSize);
-	ASSERT_CHECK_EFISTATUS(EfiDecompress(pSource, pSrcSize, pDestination, *pDstSize, Scratch, ScratchSize));
+	VOID          *pScratch = NULL;
+	UINT32        nScratchSize;
+	ASSERT_ENSURE(pInBuffer != NULL || nInSize != 0);
+	ASSERT_ENSURE(pnOutSize != 0);
+	ASSERT_CHECK_EFISTATUS(EfiGetInfo(pInBuffer, nInSize, pnOutSize, &nScratchSize));
+	ASSERT_CHECK((pScratch = AllocateZeroPool(nScratchSize)) != NULL);
+	if (pOutBuffer == NULL)
+		pOutBuffer = AllocateZeroPool(*pnOutSize);
+	ASSERT_CHECK_EFISTATUS(EfiDecompress(pInBuffer, nInSize, pOutBuffer, *pnOutSize, pScratch, nScratchSize));
 	return EFI_SUCCESS;
 }
 
-VOID OverlayDecompress(IN CONST	UINT8 *pInBuffer,
+VOID OverlayDecompress(
+	IN CONST	UINT8 *pInBuffer,
 	IN			UINT32 nInSize,
 	IN OUT		UINT8 *pOutBuffer,
-	IN			UINT32 nBpp)
+	IN			UINT32 nBpp
+)
 {
 	UINT32 nInPos = 0;         // Position in input buffer
 	UINT32 nSize = 0;      // Size of pixels
@@ -318,9 +327,10 @@ VOID OverlayDecompress(IN CONST	UINT8 *pInBuffer,
 	UINT32 nCurrSize = 0;   // Current size
 	UINT32 nEncounters;        //Encounter count
 	UINT32 nCurrEncounter = 0;            // Current encounter
+	ASSERT_ENSURE(pInBuffer != NULL || nInSize != 0);
+	ASSERT_ENSURE(pOutBuffer != NULL || nBpp != 0);
 	nEncounters = ReadNBytes(pInBuffer, 4); //Read first 4 bytes (unsigned 32-bit value
 	nInPos += 4;
-
 	while (nInPos < nInSize && nCurrEncounter < nEncounters) { // While input position < input size
 		nCurrEncounter = ReadNBytes(pInBuffer + nInPos, 4); //Read 4 bytes encounter (unsigned 32-bit value)
 		nOffset = ReadNBytes(pInBuffer + nInPos + 4, 4); //Read 4 bytes offset (unsigned 32-bit value) and multiply it by nBpp/8
@@ -338,8 +348,8 @@ VOID OverlayDecompress(IN CONST	UINT8 *pInBuffer,
 
 VOID ReuseDecompress(UINT8 *pInBuffer, UINT8 *pOutBuffer, UINT32 *pnOutSize, UINT32 nBpp)
 {
-	UINT16 *pMap;
-	UINT8 *pDat;
+	CONST UINT16 *pMap;
+	CONST UINT8 *pDat;
 	UINT32 nMapLength;
 	UINT32 nOutLength = 0;
 	UINT16 wMapCommand;
@@ -347,7 +357,8 @@ VOID ReuseDecompress(UINT8 *pInBuffer, UINT8 *pOutBuffer, UINT32 *pnOutSize, UIN
 	UINT32 nOffset;
 	UINT32 nCurrCount;
 	BOOLEAN bIsRepeat = FALSE;
-
+	ASSERT_ENSURE(pInBuffer != NULL);
+	ASSERT_ENSURE(pOutBuffer != NULL || pnOutSize != 0 || nBpp != 0);
 	// Get 4-byte map length and set map and data buffer pointers
 	nMapLength = *((UINT32*)pInBuffer);
 	pMap = (UINT16*)(pInBuffer + 4);
@@ -369,8 +380,12 @@ VOID ReuseDecompress(UINT8 *pInBuffer, UINT8 *pOutBuffer, UINT32 *pnOutSize, UIN
 		else {  // If non-repeat
 		 // Next 15 bits is count. Read count bytes from data buffer. Increment output length.
 			nCount = (wMapCommand >> 1);
-			for (nCurrCount = 0; nCurrCount < nCount; nCurrCount++)
+			nCurrCount = 0;
+			while (nCurrCount < nCount)
+			{
 				pOutBuffer[nOutLength + nCurrCount * (nBpp / 8)] = pDat[nCurrCount * (nBpp / 8)];
+				nCurrCount++;
+			}
 			nOutLength += nCount * (nBpp / 8);
 			pDat += nCount * (nBpp / 8);
 		}

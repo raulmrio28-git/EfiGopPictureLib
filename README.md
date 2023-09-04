@@ -1,7 +1,7 @@
 # EfiGopPictureLib
  EGP (EFI GOP Picture) format decoder library (currently WIP)
 # Requirements
- This project needs the following present:
+ This project needs the following requirements:
 - Visual Studio 2017 or newer (with Desktop development with C++ installed)
 - [VisualUEFI](https://github.com/ionescu007/VisualUefi) by Alex Ionescu
 # Usage
